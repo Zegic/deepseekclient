@@ -1,0 +1,29 @@
+<!-- File: templates/index.html -->
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="app-container">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="logo">DeepSeek</h1>
+            <button id="new-chat" class="new-chat-btn">创建对话</button>
+        </div>
+        <div class="conversation-list" id="conversation-list">
+            <!-- Conversations will be loaded here -->
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="chat-container" id="chat-container">
+            <!-- Messages will be displayed here -->
+            <div class="welcome-message" id="welcome-message">
+                <h2>欢迎来到ZGX制造的DeepSeek APi web端</h2>
+                <p>Start a new conversation or select an existing one.</p>
+            </div>
+        </div>
+        <div class="input-container">
+            <textarea id="user-input" placeholder="输入消息，点击按钮发送..." rows="1"></textarea>
+            <button id="send-button">发送</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

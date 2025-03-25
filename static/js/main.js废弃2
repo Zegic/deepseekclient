@@ -1,0 +1,201 @@
+document.addEventListener('DOMContentLoaded', function() {
+    let currentConversationId = null;
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+    const newChatButton = document.getElementById('new-chat');
+    const conversationList = document.getElementById('conversation-list');
+    const welcomeMessage = document.getElementById('welcome-message');
+
+    // Load conversations on page load
+    loadConversations();
+
+    // Event listeners
+    newChatButton.addEventListener('click', createNewConversation);
+    sendButton.addEventListener('click', sendMessage);
+//    userInput.addEventListener('keydown', function(e) {
+//        if (e.key === 'Enter' && !e.shiftKey) {
+//            e.preventDefault();
+//            sendMessage();
+//        }
+//    });
+
+    // Auto-resize textarea
+    userInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    // Functions
+    function loadConversations() {
+        fetch('/api/conversations')
+            .then(response => response.json())
+            .then(conversations => {
+                conversationList.innerHTML = '';
+                conversations.forEach(conversation => {
+                    const item = document.createElement('div');
+                    item.className = 'conversation-item';
+                    if (currentConversationId === conversation.id) {
+                        item.classList.add('active');
+                    }
+                    item.dataset.id = conversation.id;
+                    item.innerHTML = `
+                        ${conversation.title}
+                        <button class="delete-conversation" data-id="${conversation.id}">×</button>
+                    `;
+
+                    // 使用事件委托处理点击
+                    item.onclick = function(e) {
+                        if (e.target.classList.contains('delete-conversation')) {
+                            deleteConversation(e.target.dataset.id);
+                            e.stopPropagation();
+                        } else {
+                            loadConversation(conversation.id);
+                        }
+                    };
+
+                    conversationList.appendChild(item);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading conversations:', error);
+            });
+    }
+
+    function createNewConversation() {
+        fetch('/api/conversations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(conversation => {
+            currentConversationId = conversation.id;
+            loadConversation(conversation.id);
+            loadConversations();
+        })
+        .catch(error => {
+            console.error('Error creating conversation:', error);
+        });
+    }
+
+    function deleteConversation(id) {
+        fetch(`/api/conversations/${id}`, {
+            method: 'DELETE'
+        })
+        .then(() => {
+            if (currentConversationId === parseInt(id)) {
+                currentConversationId = null;
+                chatContainer.innerHTML = '';
+                welcomeMessage.style.display = 'block';
+            }
+            loadConversations();
+        })
+        .catch(error => {
+            console.error('Error deleting conversation:', error);
+        });
+    }
+
+    function loadConversation(id) {
+        currentConversationId = parseInt(id);
+        welcomeMessage.style.display = 'none';
+        chatContainer.innerHTML = '<div class="loading-message">Loading messages...</div>';
+
+        // Update active conversation
+        document.querySelectorAll('.conversation-item').forEach(item => {
+            item.classList.remove('active');
+            if (parseInt(item.dataset.id) === currentConversationId) {
+                item.classList.add('active');
+            }
+        });
+
+        fetch(`/api/conversations/${id}/messages`)
+            .then(response => response.json())
+            .then(messages => {
+                chatContainer.innerHTML = '';
+                messages.forEach(message => {
+                    if (message.role !== 'system') {
+                        addMessageToUI(message.role, message.content);
+                    }
+                });
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error loading messages:', error);
+                chatContainer.innerHTML = '<div class="error-message">Error loading messages</div>';
+            });
+    }
+
+    function sendMessage() {
+        const content = userInput.value.trim();
+        if (!content) return;
+
+        // If no conversation is active, create one
+        if (!currentConversationId) {
+            createNewConversation();
+            setTimeout(() => {
+                sendMessageToAPI(content);
+            }, 500); // 给创建对话一些时间
+        } else {
+            sendMessageToAPI(content);
+        }
+
+        userInput.value = '';
+        userInput.style.height = 'auto';
+    }
+
+    function sendMessageToAPI(content) {
+        // Add user message to UI
+        addMessageToUI('user', content);
+
+        // Show loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message ai-message loading';
+        loadingDiv.textContent = '正在思考...';
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        fetch(`/api/conversations/${currentConversationId}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Remove loading indicator
+            chatContainer.removeChild(loadingDiv);
+
+            // Add AI response to UI
+            addMessageToUI('assistant', data.content);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // 更新对话列表（以防标题变化）
+            loadConversations();
+        })
+        .catch(error => {
+            // Remove loading indicator and show error
+            chatContainer.removeChild(loadingDiv);
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message ai-message error';
+            errorDiv.textContent = '发生错误，请重试';
+            chatContainer.appendChild(errorDiv);
+            console.error('Error:', error);
+        });
+    }
+
+    function addMessageToUI(role, content) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role === 'user' ? 'user-message' : 'ai-message'}`;
+
+        // Format content with markdown (you can add a markdown library for better rendering)
+        const formattedContent = content.replace(/\n/g, '<br>');
+        messageDiv.innerHTML = formattedContent;
+
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+});

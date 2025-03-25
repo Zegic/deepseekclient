@@ -1,0 +1,17 @@
+deepseek-web/
+├── app/
+│   ├── __init__.py
+│   ├── models.py
+│   ├── routes.py
+│   ├── db.py
+│   └── config.py
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── main.js
+├── templates/
+│   ├── index.html
+│   └── layout.html
+├── schema.sql
+└── run.py
