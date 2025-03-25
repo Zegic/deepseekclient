@@ -1,0 +1,2 @@
+# deepseekclient
+deepseek的api的GUi的客户端，不会出现服务器繁忙请稍后再试的情况，需要deepseek的api
